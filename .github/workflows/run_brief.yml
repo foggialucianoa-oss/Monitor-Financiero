@@ -20,7 +20,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance feedparser google-genai requests xhtml2pdf
+          pip install yfinance feedparser google-genai requests xhtml2pdf curl_cffi matplotlib
 
       - name: Ejecutar script de Morning Brief
         env:
