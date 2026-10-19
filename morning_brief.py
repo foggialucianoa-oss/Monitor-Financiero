@@ -10,15 +10,15 @@ from email.message import EmailMessage
 # 1. Configuración de credenciales de forma segura
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
-SENDER_EMAIL = "foggialucianoa@gmail.com"  # Tu mail de envío
-RECEIVER_EMAIL = "foggialucianoa@gmail.com"  # Tu mail de recepción
+SENDER_EMAIL = "foggialucianoa@gmail.com"
+RECEIVER_EMAIL = "foggialucianoa@gmail.com"
 
 # Inicializar cliente de Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 2. Descarga de datos de mercado (Ejemplo base con activos clave)
+# 2. Descarga de datos de mercado (sin el ticker viejo que daba error)
 print("Descargando datos de mercado...")
-tickers = ["^MERV", "GGAL", "YPF", "SPY", "USARS=X"]
+tickers = ["^MERV", "GGAL", "YPF", "SPY"]
 data = yf.download(tickers, period="5d", progress=False)["Close"]
 
 # 3. Análisis de noticias con RSS
@@ -27,7 +27,7 @@ rss_url = "https://www.cronista.com/files/rss/finanzas-mercados.xml"
 feed = feedparser.parse(rss_url)
 titulares = "\n".join([f"- {entry.title}" for entry in feed.entries[:5]])
 
-# 4. Generación de contenido con Gemini
+# 4. Generación de contenido con Gemini (modelo actualizado)
 print("Generando análisis con Gemini...")
 prompt = f"""
 Actúa como un analista financiero experto. Con base en los siguientes titulares recientes:
