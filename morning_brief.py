@@ -17,10 +17,10 @@ RECEIVER_EMAIL = "foggialucianoa@gmail.com"
 # Inicializar cliente de Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 2. Descarga de datos de mercado
+# 2. Descarga de datos de mercado (evitando bloqueos de base de datos con hilos en 1)
 print("Descargando datos de mercado...")
 tickers = ["^MERV", "GGAL", "YPF", "SPY"]
-data = yf.download(tickers, period="5d", progress=False)["Close"]
+data = yf.download(tickers, period="5d", progress=False, threads=False)["Close"]
 
 # 3. Análisis de noticias con RSS
 print("Procesando noticias financieras...")
@@ -28,12 +28,12 @@ rss_url = "https://www.cronista.com/files/rss/finanzas-mercados.xml"
 feed = feedparser.parse(rss_url)
 titulares = "\n".join([f"- {entry.title}" for entry in feed.entries[:5]])
 
-# 4. Generación de contenido con Gemini (con reintentos por si hay alta demanda)
+# 4. Generación de contenido con Gemini (usando gemini-1.5-flash con reintentos)
 print("Generando análisis con Gemini...")
 prompt = f"""
 Actúa como un analista financiero experto. Con base en los siguientes titulares recientes:
 {titulares}
-Y los datos de cierre recientes de los activos {tickers}, redacta un resumen ejecutivo breve y profesional para el Morning Briefing de hoy centrado en el mercado argentino e internacional.
+Y los datos de cierre recientes de los activos {tickers}, redacta un resumen ejecutivo breve y profesional para le Morning Briefing de hoy centrado en el mercado argentino e internacional.
 """
 
 analisis_ia = ""
@@ -41,7 +41,7 @@ max_intentos = 3
 for intento in range(max_intentos):
     try:
         response = client.models.generate_content(
-            model="gemini-3.8-flash",
+            model="gemini-1.5-flash",
             contents=prompt,
         )
         analisis_ia = response.text
@@ -49,7 +49,7 @@ for intento in range(max_intentos):
     except Exception as e:
         print(f"Intento {intento + 1} fallido por alta demanda: {e}")
         if intento < max_intentos - 1:
-            time.sleep(5)  # Espera 5 segundos antes de reintentar
+            time.sleep(5)
         else:
             raise e
 
