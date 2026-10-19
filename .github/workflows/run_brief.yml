@@ -2,8 +2,8 @@ name: Daily Morning Briefing
 
 on:
   schedule:
-    - cron: '0 11 * * 1-5' # Corre a las 11:00 UTC (08:00 AM hora Argentina) de Lunes a Viernes
-  workflow_dispatch: # Permite correrlo manualmente cuando quieras
+    - cron: '0 11 * * 1-5' # De Lunes a Viernes a las 08:00 AM hora Argentina
+  workflow_dispatch: # Permite ejecución manual
 
 jobs:
   build-and-send:
@@ -20,7 +20,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance feedparser google-genai requests xhtml2pdf curl_cffi matplotlib
+          pip install yfinance feedparser google-genai requests xhtml2pdf
 
       - name: Ejecutar script de Morning Brief
         env:
