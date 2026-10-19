@@ -16,7 +16,7 @@ RECEIVER_EMAIL = "foggialucianoa@gmail.com"
 # Inicializar cliente de Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 2. Descarga de datos de mercado (sin el ticker viejo que daba error)
+# 2. Descarga de datos de mercado
 print("Descargando datos de mercado...")
 tickers = ["^MERV", "GGAL", "YPF", "SPY"]
 data = yf.download(tickers, period="5d", progress=False)["Close"]
@@ -27,7 +27,7 @@ rss_url = "https://www.cronista.com/files/rss/finanzas-mercados.xml"
 feed = feedparser.parse(rss_url)
 titulares = "\n".join([f"- {entry.title}" for entry in feed.entries[:5]])
 
-# 4. Generación de contenido con Gemini (modelo actualizado)
+# 4. Generación de contenido con Gemini (modelo actualizado a gemini-3.8-flash)
 print("Generando análisis con Gemini...")
 prompt = f"""
 Actúa como un analista financiero experto. Con base en los siguientes titulares recientes:
@@ -36,7 +36,7 @@ Y los datos de cierre recientes de los activos {tickers}, redacta un resumen eje
 """
 
 response = client.models.generate_content(
-    model="gemini-2.5-flash",
+    model="gemini-3.8-flash",
     contents=prompt,
 )
 analisis_ia = response.text
