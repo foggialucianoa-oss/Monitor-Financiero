@@ -1,5 +1,6 @@
 import os
 import time
+import tempfile
 import yfinance as yf
 import feedparser
 from google import genai
@@ -7,6 +8,10 @@ import requests
 from xhtml2pdf import pisa
 import smtplib
 from email.message import EmailMessage
+
+# Evitar el error "database is locked" de yfinance en entornos de servidores
+cache_dir = tempfile.mkdtemp()
+yf.set_tz_cache_location(cache_dir)
 
 # Configuración de credenciales de forma segura
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -17,7 +22,7 @@ RECEIVER_EMAIL = "foggialucianoa@gmail.com"
 # Inicializar cliente de Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Descarga de datos de mercado (threads=False para evitar bloqueos de base de datos en Linux)
+# Descarga de datos de mercado de forma limpia
 print("Descargando datos de mercado...")
 tickers = ["^MERV", "GGAL", "YPF", "SPY"]
 data = yf.download(tickers, period="5d", progress=False, threads=False)["Close"]
@@ -28,7 +33,7 @@ rss_url = "https://www.cronista.com/files/rss/finanzas-mercados.xml"
 feed = feedparser.parse(rss_url)
 titulares = "\n".join([f"- {entry.title}" for entry in feed.entries[:5]])
 
-# Generación de contenido con Gemini (con reintentos automáticos)
+# Generación de contenido con Gemini (con reintentos automáticos ante picos de demanda)
 print("Generando análisis con Gemini...")
 prompt = f"""
 Actúa como un analista financiero experto. Con base en los siguientes titulares recientes:
@@ -37,7 +42,7 @@ Y los datos de cierre recientes de los activos {tickers}, redacta un resumen eje
 """
 
 analisis_ia = ""
-max_intentos = 3
+max_intentos = 5
 for intento in range(max_intentos):
     try:
         response = client.models.generate_content(
@@ -49,7 +54,7 @@ for intento in range(max_intentos):
     except Exception as e:
         print(f"Intento {intento + 1} fallido: {e}")
         if intento < max_intentos - 1:
-            time.sleep(5)
+            time.sleep(8)  # Espera 8 segundos antes de reintentar
         else:
             raise e
 
