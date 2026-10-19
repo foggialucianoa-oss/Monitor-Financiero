@@ -278,7 +278,7 @@ def generar_lamina_triple_anexo(series_12m):
 
 
 # ==========================================
-# 3. REDACCIÓN CON GEMINI (Modelos actualizados)
+# 3. REDACCIÓN CON GEMINI (Modelo único actualizado)
 # ==========================================
 def generar_analisis_gemini(datos, noticias):
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -324,34 +324,27 @@ def generar_analisis_gemini(datos, noticias):
     TITULARES ARGENTINA: {json.dumps(titulos_arg, ensure_ascii=False)}
     """
 
-    modelos_priorizados = [
-        "gemini-2.5-flash",
-        "gemini-3.8-flash",
-        "gemini-1.5-flash",
-    ]
-
     for intento in range(1, 4):
-        for mod in modelos_priorizados:
-            try:
-                print(f"  -> Consultando modelo {mod} (Intento {intento})...")
-                resp = client.models.generate_content(
-                    model=mod,
-                    contents=prompt,
-                    config={"response_mime_type": "application/json"},
-                )
-                if resp and resp.text:
-                    print(f"  ✔ Respuesta generada con éxito por {mod}!")
-                    texto = resp.text.strip()
-                    if texto.startswith("```json"):
-                        texto = texto[7:]
-                    if texto.endswith("```"):
-                        texto = texto[:-3]
-                    return json.loads(texto.strip())
-            except Exception as e:
-                print(f"  ⚠ {mod} ocupado o no disponible ({e}). Saltando...")
-                time.sleep(2)
+        try:
+            print(f"  -> Consultando modelo gemini-3.8-flash (Intento {intento})...")
+            resp = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+                config={"response_mime_type": "application/json"},
+            )
+            if resp and resp.text:
+                print("  ✔ Respuesta generada con éxito por gemini-3.8-flash!")
+                texto = resp.text.strip()
+                if texto.startswith("```json"):
+                    texto = texto[7:]
+                if texto.endswith("```"):
+                    texto = texto[:-3]
+                return json.loads(texto.strip())
+        except Exception as e:
+            print(f"  ⚠ Error en intento {intento}: {e}")
+            time.sleep(4)
 
-    raise RuntimeError("No se pudo obtener respuesta de ningún modelo de Gemini.")
+    raise RuntimeError("No se pudo obtener respuesta de Gemini.")
 
 
 # ==========================================
