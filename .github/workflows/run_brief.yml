@@ -2,8 +2,8 @@ name: Daily Morning Briefing
 
 on:
   schedule:
-    - cron: '0 11 * * 1-5' # De Lunes a Viernes a las 08:00 AM hora Argentina
-  workflow_dispatch: # Permite ejecución manual
+    - cron: '0 11 * * 1-5' # Lunes a Viernes a las 08:00 AM hora Argentina
+  workflow_dispatch: # Permite ejecución manual inmediata
 
 jobs:
   build-and-send:
