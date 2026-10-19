@@ -8,9 +8,6 @@ from xhtml2pdf import pisa
 import smtplib
 from email.message import EmailMessage
 
-# Desactivar caché de yfinance para evitar errores de base de datos en GitHub
-yf.enable_download_cache(False)
-
 # 1. Configuración de credenciales de forma segura
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
