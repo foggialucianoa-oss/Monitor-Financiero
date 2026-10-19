@@ -33,7 +33,7 @@ rss_url = "https://www.cronista.com/files/rss/finanzas-mercados.xml"
 feed = feedparser.parse(rss_url)
 titulares = "\n".join([f"- {entry.title}" for entry in feed.entries[:5]])
 
-# Generación de contenido con Gemini (usando el nombre estándar de la SDK nueva)
+# Generación de contenido con Gemini (usando el modelo gemini-3.8-flash que exige la API)
 print("Generando análisis con Gemini...")
 prompt = f"""
 Actúa como un analista financiero experto. Con base en los siguientes titulares recientes:
@@ -46,7 +46,7 @@ max_intentos = 5
 for intento in range(max_intentos):
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=prompt,
         )
         analisis_ia = response.text
