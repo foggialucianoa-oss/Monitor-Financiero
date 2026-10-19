@@ -1,4 +1,5 @@
 import os
+import time
 import yfinance as yf
 import feedparser
 from google import genai
@@ -6,6 +7,9 @@ import requests
 from xhtml2pdf import pisa
 import smtplib
 from email.message import EmailMessage
+
+# Desactivar caché de yfinance para evitar errores de base de datos en GitHub
+yf.enable_download_cache(False)
 
 # 1. Configuración de credenciales de forma segura
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -27,7 +31,7 @@ rss_url = "https://www.cronista.com/files/rss/finanzas-mercados.xml"
 feed = feedparser.parse(rss_url)
 titulares = "\n".join([f"- {entry.title}" for entry in feed.entries[:5]])
 
-# 4. Generación de contenido con Gemini (modelo actualizado a gemini-3.8-flash)
+# 4. Generación de contenido con Gemini (con reintentos por si hay alta demanda)
 print("Generando análisis con Gemini...")
 prompt = f"""
 Actúa como un analista financiero experto. Con base en los siguientes titulares recientes:
@@ -35,11 +39,22 @@ Actúa como un analista financiero experto. Con base en los siguientes titulares
 Y los datos de cierre recientes de los activos {tickers}, redacta un resumen ejecutivo breve y profesional para el Morning Briefing de hoy centrado en el mercado argentino e internacional.
 """
 
-response = client.models.generate_content(
-    model="gemini-3.8-flash",
-    contents=prompt,
-)
-analisis_ia = response.text
+analisis_ia = ""
+max_intentos = 3
+for intento in range(max_intentos):
+    try:
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=prompt,
+        )
+        analisis_ia = response.text
+        break
+    except Exception as e:
+        print(f"Intento {intento + 1} fallido por alta demanda: {e}")
+        if intento < max_intentos - 1:
+            time.sleep(5)  # Espera 5 segundos antes de reintentar
+        else:
+            raise e
 
 # 5. Generación del reporte HTML / PDF
 html_content = f"""
