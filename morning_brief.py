@@ -26,6 +26,13 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GMAIL_USER = os.environ.get("GMAIL_USER", "foggialucianoa@gmail.com")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
 
+# Lista de destinatarios (reemplazá los de ejemplo por los mails de tus amigos)
+DESTINATARIOS = [
+    "foggialucianoa@gmail.com",
+    "joaquinpereztorres89@gmail.com",
+    "alejandroarielcalvin@gmail.com",
+]
+
 TICKERS = {
     "Macro USA": ["SPY", "QQQ", "IWM", "^TNX", "^VIX"],
     "Papeles/Sectores USA": ["NVDA", "AAPL", "MSFT", "XLF", "XLE"],
@@ -358,7 +365,7 @@ def generar_analisis_gemini(datos, noticias):
 
 
 # ==========================================
-# 4. MAQUETADO DEL PDF Y ENVÍO POR MAIL
+# 4. MAQUETADO DEL PDF Y ENVÍO POR MAIL (CON BCC)
 # ==========================================
 def armar_pdf_y_enviar(datos, noticias, c, ruta_img_triple, archivo_pdf="Morning_Brief.pdf"):
     filas_tabla = ""
@@ -485,8 +492,16 @@ def armar_pdf_y_enviar(datos, noticias, c, ruta_img_triple, archivo_pdf="Morning
     msg = MIMEMultipart()
     msg["Subject"] = f"📊 Morning Brief ({fecha_hoy}): {c['titulo_portada']}"
     msg["From"] = GMAIL_USER
-    msg["To"] = GMAIL_USER
-    msg.attach(MIMEText(f"Buen día Lucho,\n\nAdjunto el Morning Market Brief del {fecha_hoy} con el análisis diario y el Anexo Gráfico (12M).\n\nSaludos.", "plain"))
+    msg["To"] = GMAIL_USER  # Vos figurás como destinatario principal visible
+
+    cuerpo_mail = (
+        f"Buen día,\n\n"
+        f"Les comparto el Morning Market Brief correspondiente a la jornada de hoy ({fecha_hoy}), "
+        f"con el análisis macro, el seguimiento de Wall Street y plaza local, y el Anexo Gráfico (12M).\n\n"
+        f"Abrazo grande,\n"
+        f"Lucho"
+    )
+    msg.attach(MIMEText(cuerpo_mail, "plain"))
 
     with open(archivo_pdf, "rb") as f:
         adj = MIMEApplication(f.read(), _subtype="pdf")
@@ -495,8 +510,10 @@ def armar_pdf_y_enviar(datos, noticias, c, ruta_img_triple, archivo_pdf="Morning
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
         s.login(GMAIL_USER, GMAIL_APP_PASSWORD.replace(" ", ""))
-        s.sendmail(GMAIL_USER, GMAIL_USER, msg.as_string())
-    print(f"✅ ¡Correo enviado con el PDF adjunto a {GMAIL_USER}!")
+        # Al pasarle la lista DESTINATARIOS al método sendmail sin haberlos puesto en el header "To" o "Cc",
+        # el servidor SMTP los entrega automáticamente en copia oculta (BCC) real.
+        s.sendmail(GMAIL_USER, DESTINATARIOS, msg.as_string())
+    print(f"✅ ¡Correo enviado con el PDF adjunto en copia oculta a {len(DESTINATARIOS)} destinatarios!")
 
 
 # ==========================================
