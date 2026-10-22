@@ -39,10 +39,12 @@ TICKERS = {
     "Argentina ADRs/Local": ["GGAL", "YPF", "PAM", "BMA", "GGAL.BA", "^MERV"],
 }
 
+# Feeds quirúrgicos apuntando a medios Tier-1 Internacionales y Locales
 FEEDS = {
-    "Wall Street": "https://finance.yahoo.com/news/rssindex",
-    "CNBC": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258",
-    "Argentina": "https://news.google.com/rss/search?q=mercado+bonos+merval+bcra+dolar+when:1d&hl=es-419&gl=AR&ceid=AR:es-419",
+    "Wall Street Top": "https://news.google.com/rss/search?q=(site:bloomberg.com+OR+site:ft.com+OR+site:wsj.com+OR+site:reuters.com+OR+site:economist.com+OR+site:barrons.com)+(markets+OR+fed+OR+treasuries+OR+stocks+OR+inflation)+when:1d&hl=en-US&gl=US&ceid=US:en",
+    "Wall Street Flash": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258",
+    "Argentina Top": "https://news.google.com/rss/search?q=(site:ambito.com+OR+site:cronista.com+OR+site:bloomberglinea.com+OR+site:infobae.com+OR+site:lanacion.com.ar+OR+site:iprofesional.com+OR+site:rava.com)+(bonos+OR+merval+OR+bcra+OR+dolar+OR+riesgo+pais+OR+licitacion+OR+reservas)+when:1d&hl=es-419&gl=AR&ceid=AR:es-419",
+    "Argentina General": "https://news.google.com/rss/search?q=mercado+bonos+merval+bcra+dolar+when:1d&hl=es-419&gl=AR&ceid=AR:es-419",
 }
 
 
@@ -206,25 +208,43 @@ def obtener_datos_y_series():
     except Exception:
         resumen["Dolar_Arg"] = {}
 
-    print("\n2. Descargando titulares y links de las fuentes...")
+    print("\n2. Descargando titulares priorizando medios Tier-1...")
     noticias = {"Wall Street": [], "Argentina": []}
-    for f_key in ["Wall Street", "CNBC"]:
+    headers_rss = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"}
+
+    # Recolección Internacional (Prioridad: Bloomberg, FT, WSJ, Reuters, Economist, Barron's -> Refuerzo: CNBC)
+    vistas_ws = set()
+    for f_key in ["Wall Street Top", "Wall Street Flash"]:
         try:
-            resp = requests.get(FEEDS[f_key], timeout=10, verify=False)
+            resp = requests.get(FEEDS[f_key], headers=headers_rss, timeout=10, verify=False)
             parsed = feedparser.parse(resp.content)
-            for entry in parsed.entries[:3]:
-                noticias["Wall Street"].append({"titulo": entry.title, "link": entry.link, "fuente": f_key})
+            for entry in parsed.entries:
+                if len(noticias["Wall Street"]) >= 6:
+                    break
+                if entry.title not in vistas_ws:
+                    vistas_ws.add(entry.title)
+                    fuente_str = entry.source.title if hasattr(entry, "source") and hasattr(entry.source, "title") else ("Tier-1 Int" if "Top" in f_key else "CNBC")
+                    noticias["Wall Street"].append({"titulo": entry.title, "link": entry.link, "fuente": fuente_str})
         except Exception:
             pass
 
-    try:
-        resp = requests.get(FEEDS["Argentina"], timeout=10, verify=False)
-        parsed = feedparser.parse(resp.content)
-        for entry in parsed.entries[:6]:
-            noticias["Argentina"].append({"titulo": entry.title, "link": entry.link, "fuente": "Medios Arg"})
-    except Exception:
-        pass
+    # Recolección Argentina (Prioridad: Ámbito, Cronista, Bloomberg Línea, Infobae, La Nación, iProfesional, Rava)
+    vistas_arg = set()
+    for f_key in ["Argentina Top", "Argentina General"]:
+        try:
+            resp = requests.get(FEEDS[f_key], headers=headers_rss, timeout=10, verify=False)
+            parsed = feedparser.parse(resp.content)
+            for entry in parsed.entries:
+                if len(noticias["Argentina"]) >= 6:
+                    break
+                if entry.title not in vistas_arg:
+                    vistas_arg.add(entry.title)
+                    fuente_str = entry.source.title if hasattr(entry, "source") and hasattr(entry.source, "title") else "Prensa Económica"
+                    noticias["Argentina"].append({"titulo": entry.title, "link": entry.link, "fuente": fuente_str})
+        except Exception:
+            pass
 
+    print(f"  ✔ Noticias cargadas -> Internacional: {len(noticias['Wall Street'])} | Argentina: {len(noticias['Argentina'])}")
     return resumen, noticias, series_12m
 
 
@@ -285,17 +305,21 @@ def generar_lamina_triple_anexo(series_12m):
 
 
 # ==========================================
-# 3. REDACCIÓN CON GEMINI (Prompt extendido y detallado)
+# 3. REDACCIÓN CON GEMINI (Prompt extendido + Prioridad Tier-1)
 # ==========================================
 def generar_analisis_gemini(datos, noticias):
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    titulos_ws = [f"[{i}] {n['titulo']}" for i, n in enumerate(noticias["Wall Street"])]
-    titulos_arg = [f"[{i}] {n['titulo']}" for i, n in enumerate(noticias["Argentina"])]
+    titulos_ws = [f"[{i}] ({n.get('fuente', 'Int')}) {n['titulo']}" for i, n in enumerate(noticias["Wall Street"])]
+    titulos_arg = [f"[{i}] ({n.get('fuente', 'Arg')}) {n['titulo']}" for i, n in enumerate(noticias["Argentina"])]
 
     prompt = f"""
     Sos el Head of Research de un banco de inversión senior. Redactá el "Morning Brief" diario en español con máximo rigor técnico, profundidad conceptual y desarrollo analítico extenso (evitá respuestas cortas).
     PROHIBIDO INVENTAR COTIZACIONES: usá exclusivamente los precios, variaciones y RVOL del JSON adjunto.
+
+    CRITERIO DE CURADURÍA Y FUENTES (CERO HUMO):
+    - Para el análisis internacional, dale máxima prioridad y peso conceptual a las señales de Bloomberg, Financial Times, The Wall Street Journal (WSJ), Reuters, The Economist, Barron's y CNBC.
+    - Para el análisis local (Argentina), dale máxima prioridad y énfasis a la información proveniente de Ámbito Financiero, El Cronista, Bloomberg Línea, Infobae Económico, La Nación Economía, iProfesional, Rava Bursátil y lecturas de deuda soberana (Bonistas). Descartá cualquier rumor sin sustento técnico y enfocate en drivers duros (tasas, flujos, licitaciones, brecha, reservas, balances y riesgo soberano).
 
     Devolvé un JSON válido con esta estructura exacta (sin texto antes ni después, solo el objeto JSON):
     {{
@@ -510,8 +534,6 @@ def armar_pdf_y_enviar(datos, noticias, c, ruta_img_triple, archivo_pdf="Morning
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
         s.login(GMAIL_USER, GMAIL_APP_PASSWORD.replace(" ", ""))
-        # Al pasarle la lista DESTINATARIOS al método sendmail sin haberlos puesto en el header "To" o "Cc",
-        # el servidor SMTP los entrega automáticamente en copia oculta (BCC) real.
         s.sendmail(GMAIL_USER, DESTINATARIOS, msg.as_string())
     print(f"✅ ¡Correo enviado con el PDF adjunto en copia oculta a {len(DESTINATARIOS)} destinatarios!")
 
